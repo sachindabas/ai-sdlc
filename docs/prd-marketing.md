@@ -11,6 +11,22 @@
 
 ---
 
+## Table of Contents
+
+1. [Executive Summary](#1-executive-summary)
+2. [Business Model & Market Positioning](#2-business-model--market-positioning-)
+3. [Customer Acquisition & Booking Channels](#3-customer-acquisition--booking-channels-)
+4. [Pricing & Promotions](#4-pricing--promotions-)
+5. [Customer Profiles & Personalization](#5-customer-profiles--personalization-)
+6. [Marketing Analytics & Reporting](#6-marketing-analytics--reporting-)
+7. [Integration with Car Sales Business](#7-integration-with-car-sales-business-)
+8. [Constraints & Priorities](#8-constraints--priorities-)
+9. [Assumptions](#9-assumptions-)
+10. [Open Questions](#10-open-questions-)
+11. [Revision History](#11-revision-history-)
+
+---
+
 ## 1. Executive Summary
 
 Buckle up, team — we're launching a **brand-new car rental business** and it's going to be awesome! 🎊
