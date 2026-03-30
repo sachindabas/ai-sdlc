@@ -27,6 +27,8 @@
 9. [Approval Workflows & Internal Controls](#9-approval-workflows--internal-controls)
 10. [Constraints & Priorities](#10-constraints--priorities)
 11. [Glossary](#11-glossary)
+12. [Open Questions](#12-open-questions)
+13. [Revision History](#13-revision-history)
 
 ---
 
@@ -528,4 +530,29 @@ The following features can be deferred to a subsequent release:
 
 ---
 
-*End of PRD — Car Rental System Accounting Module v1.0*
+## 12. Open Questions
+
+The following items require confirmation before or during implementation. They must not be resolved unilaterally; each requires input from the identified owner.
+
+| # | Question | Owner | Status |
+|---|---|---|---|
+| OQ-01 | What is the base (domestic) currency for the rental business? | Finance / CFO | Open |
+| OQ-02 | Which accounting or ERP platform will the system integrate with (e.g., SAP, Oracle Financials, QuickBooks, Xero)? | IT / Finance | Open |
+| OQ-03 | What is the confirmed fiscal year start date and first tax-filing date? These determine hard system-readiness deadlines. | Finance / CFO | Open |
+| OQ-04 | What are the exact monetary thresholds for refund, discount, and manual-adjustment approval workflows (§9.1)? | Finance Manager / CFO | Open |
+| OQ-05 | What are the Phase 1 operating jurisdictions, and which specific tax types and rates apply in each? | Finance / Legal | Open |
+| OQ-06 | What cancellation refund percentages apply at each timing tier (§5.1)? The table uses illustrative values and must be confirmed against the commercial policy. | Finance / Operations | Open |
+| OQ-07 | Will any separate legal entities (distinct from branches) be required, and if so, what is the target timeline? (§2.3 defers this post-launch.) | Finance / Legal | Open |
+| OQ-08 | Is a direct bank-feed integration required at launch, or is file-based import acceptable for Day 1? (§5.5 defers full automation post-launch.) | Finance / IT | Open |
+
+---
+
+## 13. Revision History
+
+| Version | Date | Author | Description |
+|---|---|---|---|
+| 1.0 | 2026-03-29 | Product Owner | Initial draft based on Accounting team requirement-gathering interview |
+
+---
+
+*End of PRD — Accounting Team*
