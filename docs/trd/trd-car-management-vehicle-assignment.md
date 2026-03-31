@@ -21,6 +21,7 @@
 2. [Scope](#2-scope)
 3. [Actors & System Boundaries](#3-actors--system-boundaries)
 4. [Data Model](#4-data-model)
+   - [4.0 Entity Relationship Diagram](#40-entity-relationship-diagram)
 5. [Assignment Engine](#5-assignment-engine)
 6. [Automatic Assignment Criteria](#6-automatic-assignment-criteria)
 7. [Manual Assignment](#7-manual-assignment)
@@ -90,6 +91,137 @@ The Vehicle Assignment subsystem is responsible for:
 ---
 
 ## 4. Data Model
+
+### 4.0 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    Vehicle {
+        UUID vehicle_id PK
+        VARCHAR vin
+        ENUM category
+        UUID location_id FK
+        ENUM status
+        INTEGER odometer_km
+        ENUM fuel_type
+        ENUM transmission
+        VARCHAR colour
+        TIMESTAMP updated_at
+    }
+
+    Booking {
+        UUID booking_id PK
+        UUID customer_id FK
+        UUID pickup_location_id FK
+        ENUM requested_category
+        TIMESTAMP pickup_at
+        TIMESTAMP return_at
+        ENUM status
+    }
+
+    Customer {
+        UUID customer_id PK
+        VARCHAR name
+        VARCHAR preferred_colour
+        ENUM preferred_transmission
+    }
+
+    Location {
+        UUID location_id PK
+        VARCHAR name
+        VARCHAR address
+    }
+
+    Staff {
+        UUID staff_id PK
+        VARCHAR name
+        ENUM role
+    }
+
+    VehicleAssignment {
+        UUID assignment_id PK
+        UUID booking_id FK
+        UUID vehicle_id FK
+        UUID assigned_by FK
+        ENUM assignment_mode
+        JSONB assignment_criteria_snapshot
+        TEXT override_reason
+        TIMESTAMP assigned_at
+        ENUM status
+    }
+
+    MaintenanceBlock {
+        UUID block_id PK
+        UUID vehicle_id FK
+        ENUM block_type
+        TIMESTAMP start_at
+        TIMESTAMP end_at
+        UUID created_by FK
+        TIMESTAMP created_at
+        TEXT notes
+    }
+
+    VehicleHold {
+        UUID hold_id PK
+        UUID vehicle_id FK
+        UUID customer_id FK
+        UUID held_by FK
+        TIMESTAMP hold_start
+        TIMESTAMP hold_end
+        TEXT reason
+        ENUM status
+        TIMESTAMP created_at
+        TIMESTAMP released_at
+        UUID released_by FK
+    }
+
+    WaitlistEntry {
+        UUID waitlist_id PK
+        UUID booking_id FK
+        UUID customer_id FK
+        ENUM requested_category
+        UUID pickup_location_id FK
+        TIMESTAMP pickup_from
+        TIMESTAMP pickup_to
+        TIMESTAMP queued_at
+        ENUM status
+        TIMESTAMP notified_at
+    }
+
+    AssignmentCriteriaConfig {
+        UUID config_id PK
+        UUID location_id FK
+        BOOLEAN lowest_mileage_enabled
+        INTEGER lowest_mileage_weight
+        BOOLEAN location_match_enabled
+        INTEGER location_match_weight
+        BOOLEAN customer_preference_enabled
+        INTEGER customer_preference_weight
+        BOOLEAN category_upgrade_enabled
+        UUID updated_by FK
+        TIMESTAMP updated_at
+    }
+
+    Vehicle ||--o{ VehicleAssignment : "assigned via"
+    Vehicle ||--o{ MaintenanceBlock : "blocked by"
+    Vehicle ||--o{ VehicleHold : "held via"
+    Vehicle }o--|| Location : "located at"
+
+    Booking ||--o{ VehicleAssignment : "fulfilled by"
+    Booking ||--o| WaitlistEntry : "queued as"
+    Booking }o--|| Customer : "made by"
+    Booking }o--|| Location : "pickup at"
+
+    Customer ||--o{ VehicleHold : "held for"
+    Customer ||--o{ WaitlistEntry : "queued by"
+
+    Location ||--o{ AssignmentCriteriaConfig : "configured by"
+
+    Staff ||--o{ VehicleAssignment : "overrides"
+    Staff ||--o{ MaintenanceBlock : "creates"
+    Staff ||--o{ VehicleHold : "authorises"
+    Staff ||--o{ AssignmentCriteriaConfig : "updates"
+```
 
 ### 4.1 Vehicle
 
