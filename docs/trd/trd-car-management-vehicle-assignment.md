@@ -96,17 +96,34 @@ The Vehicle Assignment subsystem is responsible for:
 
 ```mermaid
 erDiagram
-    Vehicle {
-        UUID vehicle_id PK
+    vehicle {
+        UUID id PK
         VARCHAR vin
-        ENUM category
-        UUID location_id FK
-        ENUM status
-        INTEGER odometer_km
+        VARCHAR license_plate
+        VARCHAR make
+        VARCHAR model
+        SMALLINT year
+        VARCHAR color
         ENUM fuel_type
         ENUM transmission
-        VARCHAR colour
+        SMALLINT seating_capacity
+        INTEGER odometer_km
+        UUID vehicle_category_id FK
+        UUID location_id FK
+        ENUM status
+        DATE date_added_to_fleet
+        UUID created_by FK
+        TIMESTAMP created_at
+        UUID updated_by FK
         TIMESTAMP updated_at
+    }
+
+    vehicle_category {
+        UUID id PK
+        VARCHAR name
+        TEXT description
+        BOOLEAN is_active
+        TIMESTAMP created_at
     }
 
     Booking {
@@ -122,18 +139,20 @@ erDiagram
     Customer {
         UUID customer_id PK
         VARCHAR name
-        VARCHAR preferred_colour
+        VARCHAR preferred_color
         ENUM preferred_transmission
     }
 
-    Location {
-        UUID location_id PK
+    rental_location {
+        UUID id PK
         VARCHAR name
-        VARCHAR address
+        TEXT address
+        BOOLEAN is_active
+        TIMESTAMP created_at
     }
 
-    Staff {
-        UUID staff_id PK
+    system_user {
+        UUID id PK
         VARCHAR name
         ENUM role
     }
@@ -202,42 +221,45 @@ erDiagram
         TIMESTAMP updated_at
     }
 
-    Vehicle ||--o{ VehicleAssignment : "assigned via"
-    Vehicle ||--o{ MaintenanceBlock : "blocked by"
-    Vehicle ||--o{ VehicleHold : "held via"
-    Vehicle }o--|| Location : "located at"
+    vehicle ||--o{ VehicleAssignment : "assigned via"
+    vehicle ||--o{ MaintenanceBlock : "blocked by"
+    vehicle ||--o{ VehicleHold : "held via"
+    vehicle }o--|| rental_location : "located at"
+    vehicle }o--|| vehicle_category : "classified as"
 
     Booking ||--o{ VehicleAssignment : "fulfilled by"
     Booking ||--o| WaitlistEntry : "queued as"
     Booking }o--|| Customer : "made by"
-    Booking }o--|| Location : "pickup at"
+    Booking }o--|| rental_location : "pickup at"
 
     Customer ||--o{ VehicleHold : "held for"
     Customer ||--o{ WaitlistEntry : "queued by"
 
-    Location ||--o{ AssignmentCriteriaConfig : "configured by"
+    rental_location ||--o{ AssignmentCriteriaConfig : "configured by"
 
-    Staff ||--o{ VehicleAssignment : "overrides"
-    Staff ||--o{ MaintenanceBlock : "creates"
-    Staff ||--o{ VehicleHold : "authorises"
-    Staff ||--o{ AssignmentCriteriaConfig : "updates"
+    system_user ||--o{ VehicleAssignment : "overrides"
+    system_user ||--o{ MaintenanceBlock : "creates"
+    system_user ||--o{ VehicleHold : "authorises"
+    system_user ||--o{ AssignmentCriteriaConfig : "updates"
 ```
+
+> **Cross-document note:** The `vehicle`, `vehicle_category`, and `rental_location` entities above are shared with the [Fleet Size & Growth Planning TRD](./trd-car-management-fleet-size-growth-planning.md), which is the canonical definition for those tables. The Vehicle Assignment TRD adds the assignment-specific domain entities (`VehicleAssignment`, `MaintenanceBlock`, `VehicleHold`, `WaitlistEntry`, `AssignmentCriteriaConfig`).
 
 ### 4.1 Vehicle
 
-The Vehicle entity is the primary subject of assignment. The following fields are directly relevant to assignment logic; full vehicle attributes are defined in [PRD §2.3](../prd-car-management.md#23-vehicle-attributes).
+The `vehicle` entity is defined canonically in the [Fleet Size & Growth Planning TRD §3.2](./trd-car-management-fleet-size-growth-planning.md#32-vehicle). The fields below are the subset directly relevant to assignment logic.
 
 | Field | Type | Description |
 |---|---|---|
-| `vehicle_id` | UUID | Primary key |
+| `id` | UUID | Primary key (`vehicle.id` in the fleet TRD) |
 | `vin` | VARCHAR(17) | Vehicle Identification Number — unique |
-| `category` | ENUM | Economy, Compact, Mid-Size, SUV, Luxury, EV, Van |
-| `location_id` | UUID | FK → Location; currently assigned branch |
+| `vehicle_category_id` | UUID | FK → `vehicle_category.id`; resolved to Economy, Compact, Mid-Size, SUV, Luxury, EV, Van |
+| `location_id` | UUID | FK → `rental_location.id`; currently assigned branch |
 | `status` | ENUM | `available`, `booked`, `in_transit`, `under_maintenance`, `on_hold`, `retired` |
 | `odometer_km` | INTEGER | Current recorded mileage |
-| `fuel_type` | ENUM | Petrol, Diesel, Hybrid, Electric |
-| `transmission` | ENUM | Manual, Automatic |
-| `colour` | VARCHAR(50) | Exterior colour |
+| `fuel_type` | ENUM | `petrol`, `diesel`, `hybrid`, `electric` |
+| `transmission` | ENUM | `manual`, `automatic` |
+| `color` | VARCHAR(50) | Exterior colour |
 | `updated_at` | TIMESTAMP | Last status update timestamp |
 
 ### 4.2 VehicleAssignment
@@ -248,8 +270,8 @@ Records the assignment of a vehicle to a booking, including assignment mode and 
 |---|---|---|
 | `assignment_id` | UUID | Primary key |
 | `booking_id` | UUID | FK → Booking |
-| `vehicle_id` | UUID | FK → Vehicle |
-| `assigned_by` | UUID | FK → Staff (NULL if automatic) |
+| `vehicle_id` | UUID | FK → `vehicle.id` |
+| `assigned_by` | UUID | FK → `system_user.id` (NULL if automatic) |
 | `assignment_mode` | ENUM | `automatic`, `manual` |
 | `assignment_criteria_snapshot` | JSONB | Criteria weights and scores at time of assignment |
 | `override_reason` | TEXT | Required when `assignment_mode = manual` and a previous automatic assignment existed |
@@ -263,11 +285,11 @@ Records a time window during which a vehicle must not be assigned to any booking
 | Field | Type | Description |
 |---|---|---|
 | `block_id` | UUID | Primary key |
-| `vehicle_id` | UUID | FK → Vehicle |
+| `vehicle_id` | UUID | FK → `vehicle.id` |
 | `block_type` | ENUM | `routine`, `inspection`, `ad_hoc` |
 | `start_at` | TIMESTAMP | Maintenance window start |
 | `end_at` | TIMESTAMP | Maintenance window end (estimated) |
-| `created_by` | UUID | FK → Staff |
+| `created_by` | UUID | FK → `system_user.id` |
 | `created_at` | TIMESTAMP | Record creation timestamp |
 | `notes` | TEXT | Optional description |
 
@@ -278,16 +300,16 @@ Records a time-limited hold on a specific vehicle for a named customer or accoun
 | Field | Type | Description |
 |---|---|---|
 | `hold_id` | UUID | Primary key |
-| `vehicle_id` | UUID | FK → Vehicle |
+| `vehicle_id` | UUID | FK → `vehicle.id` |
 | `customer_id` | UUID | FK → Customer (B2C or B2B account) |
-| `held_by` | UUID | FK → Staff; authorising staff member |
+| `held_by` | UUID | FK → `system_user.id`; authorising staff member |
 | `hold_start` | TIMESTAMP | Hold effective from |
 | `hold_end` | TIMESTAMP | Hold expires at; must not be NULL |
 | `reason` | TEXT | Business justification for the hold |
 | `status` | ENUM | `active`, `expired`, `released` |
 | `created_at` | TIMESTAMP | Record creation timestamp |
 | `released_at` | TIMESTAMP | Timestamp if manually released before expiry |
-| `released_by` | UUID | FK → Staff; NULL if expired automatically |
+| `released_by` | UUID | FK → `system_user.id`; NULL if expired automatically |
 
 ### 4.5 WaitlistEntry
 
@@ -299,7 +321,7 @@ Records a customer queued for a specific vehicle category when no vehicle is cur
 | `booking_id` | UUID | FK → Booking |
 | `customer_id` | UUID | FK → Customer |
 | `requested_category` | ENUM | Vehicle category the customer is waiting for |
-| `pickup_location_id` | UUID | FK → Location |
+| `pickup_location_id` | UUID | FK → `rental_location.id` |
 | `pickup_from` | TIMESTAMP | Desired rental start |
 | `pickup_to` | TIMESTAMP | Desired rental end |
 | `queued_at` | TIMESTAMP | When the waitlist entry was created |
@@ -313,7 +335,7 @@ Stores the active configuration for automatic assignment criteria per location (
 | Field | Type | Description |
 |---|---|---|
 | `config_id` | UUID | Primary key |
-| `location_id` | UUID | FK → Location; NULL means global default |
+| `location_id` | UUID | FK → `rental_location.id`; NULL means global default |
 | `lowest_mileage_enabled` | BOOLEAN | Whether lowest-mileage criterion is active |
 | `lowest_mileage_weight` | INTEGER | Relative weight (1–100) |
 | `location_match_enabled` | BOOLEAN | Whether location-match criterion is active |
@@ -321,7 +343,7 @@ Stores the active configuration for automatic assignment criteria per location (
 | `customer_preference_enabled` | BOOLEAN | Whether customer preference matching is active |
 | `customer_preference_weight` | INTEGER | Relative weight (1–100) |
 | `category_upgrade_enabled` | BOOLEAN | Whether auto-upgrade is permitted when requested category is unavailable |
-| `updated_by` | UUID | FK → Staff |
+| `updated_by` | UUID | FK → `system_user.id` |
 | `updated_at` | TIMESTAMP | Last configuration change |
 
 ---
@@ -392,9 +414,9 @@ The following criteria must be supported. Each criterion is independently enable
 
 ### 6.3 Customer Preference
 
-- **Purpose**: Match documented customer preferences (colour, transmission type).
+- **Purpose**: Match documented customer preferences (color, transmission type).
 - **Score function**: Additive match across active preference sub-criteria:
-  - Colour match: +0.5 if `vehicle.colour = customer.preferred_colour`
+  - Color match: +0.5 if `vehicle.color = customer.preferred_color`
   - Transmission match: +0.5 if `vehicle.transmission = customer.preferred_transmission`
   - Total normalised to 0–1.
 - **Data source**: Customer preference data stored in the Customer Profile service.
@@ -687,7 +709,7 @@ The following events must trigger notifications via the Notification Service:
 
 ### 13.5 Customer Profile Service
 
-- The Assignment Engine must query the Customer Profile Service for customer preferences (colour, transmission) when `customer_preference_enabled = true`.
+- The Assignment Engine must query the Customer Profile Service for customer preferences (color, transmission) when `customer_preference_enabled = true`.
 - If the Customer Profile Service is unavailable, the engine must degrade gracefully by setting the customer preference score to 0.0 for all vehicles and proceeding with other active criteria.
 
 ---
@@ -795,7 +817,7 @@ The following events must trigger notifications via the Notification Service:
 |---|---|
 | A-01 | Vehicle categories are as defined in PRD §2.2; the upgrade hierarchy applies only to Economy, Compact, Mid-Size, SUV, and Luxury categories. |
 | A-02 | The Booking Engine is responsible for pricing; this TRD does not define how additional upgrade charges are calculated or applied. |
-| A-03 | Customer preference data (colour, transmission) is stored and maintained by the Customer Profile service, not by the Assignment Engine. |
+| A-03 | Customer preference data (color, transmission) is stored and maintained by the Customer Profile service, not by the Assignment Engine. |
 | A-04 | Inter-location vehicle transfer (PRD §2.6) is out of scope for automatic assignment at launch; all automatic assignments are restricted to the booking's pickup location. |
 | A-05 | The integration bus (event-driven messaging) is provided by the platform infrastructure; this TRD does not specify the messaging technology. |
 | A-06 | The 7-year audit log retention requirement is consistent with the accounting compliance requirement in `docs/prd-accounting.md`. |
