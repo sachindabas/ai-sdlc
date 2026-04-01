@@ -21,6 +21,7 @@
 1. [Overview](#1-overview)
 2. [Scope](#2-scope)
 3. [Data Model](#3-data-model)
+   - [3.0 Entity Relationship Diagram](#30-entity-relationship-diagram)
 4. [Functional Requirements](#4-functional-requirements)
 5. [Business Rules](#5-business-rules)
 6. [Admin Interface Requirements](#6-admin-interface-requirements)
@@ -77,6 +78,82 @@ The requirements in this document are derived directly from [PRD §2.1](../prd-c
 
 ## 3. Data Model
 
+### 3.0 Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    system_user {
+        UUID id PK
+        VARCHAR name
+        ENUM role
+    }
+
+    vehicle_category {
+        UUID id PK
+        VARCHAR name
+        TEXT description
+        BOOLEAN is_active
+        TIMESTAMP created_at
+    }
+
+    rental_location {
+        UUID id PK
+        VARCHAR name
+        TEXT address
+        BOOLEAN is_active
+        TIMESTAMP created_at
+    }
+
+    fleet_capacity_plan {
+        UUID id PK
+        UUID location_id FK
+        UUID vehicle_category_id FK
+        INTEGER target_count
+        DATE effective_date
+        DATE expiry_date
+        UUID created_by FK
+        TIMESTAMP created_at
+        UUID updated_by FK
+        TIMESTAMP updated_at
+        TEXT notes
+    }
+
+    vehicle {
+        UUID id PK
+        VARCHAR vin
+        VARCHAR license_plate
+        VARCHAR make
+        VARCHAR model
+        SMALLINT year
+        VARCHAR color
+        ENUM fuel_type
+        ENUM transmission
+        SMALLINT seating_capacity
+        INTEGER odometer_km
+        UUID vehicle_category_id FK
+        UUID location_id FK
+        ENUM status
+        DATE date_added_to_fleet
+        UUID created_by FK
+        TIMESTAMP created_at
+        UUID updated_by FK
+        TIMESTAMP updated_at
+        TIMESTAMP retired_at
+        TEXT notes
+    }
+
+    vehicle_category ||--o{ fleet_capacity_plan : "targeted in"
+    vehicle_category ||--o{ vehicle : "classifies"
+
+    rental_location ||--o{ fleet_capacity_plan : "planned at"
+    rental_location ||--o{ vehicle : "assigned to"
+
+    system_user ||--o{ fleet_capacity_plan : "creates / updates"
+    system_user ||--o{ vehicle : "registers / updates"
+```
+
+> **Cross-document note:** The `vehicle` and `rental_location` entities defined here are the canonical source of truth. The Vehicle Assignment TRD (see [trd-car-management-vehicle-assignment.md](./trd-car-management-vehicle-assignment.md)) extends `vehicle` with assignment-specific relationships (`VehicleAssignment`, `MaintenanceBlock`, `VehicleHold`, `WaitlistEntry`) and references `rental_location` as `Location`.
+
 ### 3.1 `fleet_capacity_plan`
 
 Stores the administrator-defined target fleet configuration per category per location.
@@ -116,7 +193,7 @@ Core vehicle record. Captures all attributes required by [PRD §2.3](../prd-car-
 | `odometer_km` | INTEGER | not null, ≥ 0 | Current recorded mileage in kilometres |
 | `vehicle_category_id` | UUID | FK → `vehicle_category.id`, not null | Assigned rental category |
 | `location_id` | UUID | FK → `rental_location.id`, not null | Currently assigned rental branch |
-| `status` | ENUM | not null | One of: `available`, `booked`, `in_service`, `under_maintenance`, `in_transit`, `retired` |
+| `status` | ENUM | not null | One of: `available`, `booked`, `in_transit`, `under_maintenance`, `on_hold`, `retired` |
 | `date_added_to_fleet` | DATE | not null | Date the vehicle was added to the rental fleet |
 | `created_by` | UUID | FK → `system_user.id`, not null | Administrator who registered this vehicle |
 | `created_at` | TIMESTAMP | not null, default now() | Record creation timestamp (UTC) |
